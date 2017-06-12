@@ -22,10 +22,7 @@
 
 package com.controlj.green.bulktrend.trendserver;
 
-import com.controlj.green.addonsupport.access.trend.TrendAnalogSample;
-import com.controlj.green.addonsupport.access.trend.TrendDigitalSample;
-import com.controlj.green.addonsupport.access.trend.TrendSample;
-import com.controlj.green.addonsupport.access.trend.TrendType;
+import com.controlj.green.addonsupport.access.trend.*;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -61,21 +58,39 @@ public class JSONTrendFormatter extends BaseTrendFormatter implements TrendForma
 
             for (TrendSample sample : samples) {
                 // Note that we currently just skip special (non-data) samples
-                if (sample.getType() == TrendType.DATA) {
-                    JSONObject json = new JSONObject();
-                    json.put("t", formatDate(sample.getTime()));
+                final JSONObject row = new JSONObject();
+                row.put("@type", sample.getType());
+                row.put("time", sample.getTimeInMillis());
 
-                    //todo  - remove casting
-                    // After expected 5.0 changes to the add-on api, we should be able to get
-                    // a String value without this awkward casting
+                switch (sample.getType()) {
+                    case DATA:
+                        //todo  - remove casting
+                        // After expected 5.0 changes to the add-on api, we should be able to get
+                        // a String value without this awkward casting
 
-                    if (sample instanceof TrendAnalogSample) {
-                        json.put("a", formatAnalog(((TrendAnalogSample)sample).doubleValue()) );
-                    } else if (sample instanceof TrendDigitalSample) {
-                        json.put("d", ((TrendDigitalSample)sample).getState() );
-                    }
-                    arrayData.put(json);
+                        if (sample instanceof TrendAnalogSample)
+                            row.put("value", formatAnalog(((TrendAnalogSample) sample).doubleValue()));
+                        if (sample instanceof TrendDigitalSample)
+                            row.put("state", ((TrendDigitalSample) sample).getState());
+
+
+                        arrayData.put(row);
+                        break;
+
+                    default:
+                        row.put("value", sample.getSpecialValue());
+
                 }
+
+                if(sample.getStatusFlags() != null && sample.getStatusFlags().size() > 0) {
+                    JSONArray flags = new JSONArray();
+                    for(TrendStatusFlag flag : sample.getStatusFlags()) {
+                        flags.put(flag.toString());
+                    }
+                    row.put("flags", flags);
+                }
+
+
             }
             obj.put("s", arrayData);
 
